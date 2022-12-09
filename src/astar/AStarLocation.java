@@ -1,8 +1,5 @@
 package astar;
 
-import astar.AStarQuerrier.ChunkLocation;
-import astar.AStarQuerrier.GridLocation;
-
 public final class AStarLocation{
 	int g=0;
 	int h=0;
@@ -11,11 +8,11 @@ public final class AStarLocation{
 	int phase = -1;
 	AStarLocation parent = null;
 	
-	public final ChunkLocation chunkLoc;
+	public final AStarLocation.ChunkLocation chunkLoc;
 	
-	final GridLocation gridLoc;
+	final AStarLocation.GridLocation gridLoc;
 	
-	AStarLocation(ChunkLocation chunkLoc, GridLocation gridLoc){
+	AStarLocation(AStarLocation.ChunkLocation chunkLoc, AStarLocation.GridLocation gridLoc){
 		this.gridLoc = gridLoc;
 		this.chunkLoc=chunkLoc;
 	}
@@ -28,7 +25,7 @@ public final class AStarLocation{
 		parent=null;
 	}
 	
-	static int getDistanceBetweenNodes(GridLocation a, GridLocation b) {
+	static int getDistanceBetweenNodes(AStarLocation.GridLocation a, AStarLocation.GridLocation b) {
 		int x = Math.abs(a.x()-b.x());
 		int y = Math.abs(a.y()-b.y());
 		if(x>y)return 14*y+10*(x-y);
@@ -36,4 +33,8 @@ public final class AStarLocation{
 	}
 	
 	enum State{CLOSED,OPEN,NONE}
+
+	public static record GridLocation(int x, int y) {}
+
+	public static record ChunkLocation(int cx, int cy, int px, int py) {}
 }

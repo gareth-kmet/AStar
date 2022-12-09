@@ -1,18 +1,18 @@
 package astar;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 
 import astar.AStarQuerrier.Answer;
-import astar.AStarQuerrier.ChunkLocation;
-import astar.AStarQuerrier.GridLocation;
 import astar.AStarQuerrier.Question;
 
 public final class AStar {
 	
 	private final long id;
-	private final int cxsize, cysize, psize;
+	@SuppressWarnings("unused")
+	private final int cxsize, cysize, psize, cxoffset, cyoffset;
 	private final int xsize, ysize;
 	private final AStarQuerrier querrier;
 	
@@ -21,14 +21,16 @@ public final class AStar {
 	private int phase = -1;
 
 	
-	public AStar(AStarQuerrier querry, int cxsize, int cysize, int psize) {
-		this(0,querry, cxsize,cysize,psize);
+	public AStar(AStarQuerrier querry, int cxsize, int cysize, int psize, int cxoffset, int cyoffset) {
+		this(0,querry, cxsize,cysize,psize, cxoffset, cyoffset);
 	}
 	
-	public AStar(long id, AStarQuerrier querry, int cxsize, int cysize, int psize) {
+	public AStar(long id, AStarQuerrier querry, int cxsize, int cysize, int psize, int cxoffset, int cyoffset) {
 		this.id = id;
 		this.cxsize = cxsize;
 		this.cysize = cysize;
+		this.cxoffset=cxoffset;
+		this.cyoffset=cyoffset;
 		this.psize = psize;
 		this.querrier=querry;
 		
@@ -38,32 +40,32 @@ public final class AStar {
 		grid = new AStarLocation[xsize][ysize];
 		for(int x=0;x<xsize;x++) {
 			for(int y=0;y<ysize;y++) {
-				GridLocation gl = new GridLocation(x,y);
+				AStarLocation.GridLocation gl = new AStarLocation.GridLocation(x,y);
 				grid[x][y] = new AStarLocation(gridToChunk(gl), gl);
 			}
 		}
 	}
 	
-	private GridLocation chunkToGrid(ChunkLocation cl) {
-		int x = cl.cx()*psize+cl.px();
-		int y = cl.cy()*psize+cl.py();
-		return new GridLocation(x,y);
+	private AStarLocation.GridLocation chunkToGrid(AStarLocation.ChunkLocation cl) {
+		int x = (cl.cx()-cxoffset)*psize+cl.px();
+		int y = (cl.cy()-cyoffset)*psize+cl.py();
+		return new AStarLocation.GridLocation(x,y);
 	}
 	
-	private ChunkLocation gridToChunk(GridLocation gl) {
-		int px = gl.x()/psize;
-		int py = gl.y()/psize;
-		int cx = gl.x()%psize;
-		int cy = gl.x()%psize;
-		return new ChunkLocation(cx,cy,px,py);
+	private AStarLocation.ChunkLocation gridToChunk(AStarLocation.GridLocation gl) {
+		int cx = gl.x()/psize;
+		int cy = gl.y()/psize;
+		int px = gl.x()%psize+cxoffset;
+		int py = gl.y()%psize+cyoffset;
+		return new AStarLocation.ChunkLocation(cx,cy,px,py);
 	}
 	
-	private AStarLocation getLocation(ChunkLocation cl) {
-		GridLocation gl = chunkToGrid(cl);
+	private AStarLocation getLocation(AStarLocation.ChunkLocation cl) {
+		AStarLocation.GridLocation gl = chunkToGrid(cl);
 		return grid[gl.x()][gl.y()];
 	}
 	
-	public void run(ChunkLocation startLoc, ChunkLocation targetLoc) {
+	public Result run(AStarLocation.ChunkLocation startLoc, AStarLocation.ChunkLocation targetLoc) {
 		AStarLocation start = getLocation(startLoc);
 		AStarLocation target = getLocation(targetLoc);
 
@@ -93,11 +95,11 @@ public final class AStar {
 				
 				Answer conditions = querrier.querry(new Question(id, current, neighbour));
 				
-				if(!conditions.walkable() || closed.contains(neighbour)) continue;
+				if(!conditions.walkable() || neighbour.state==AStarLocation.State.CLOSED) continue;
 				
 				int neighbourNewCost = current.g + conditions.penalty() + AStarLocation.getDistanceBetweenNodes(current.gridLoc, neighbour.gridLoc);
 				
-				boolean contains = open.contains(neighbour);
+				boolean contains = neighbour.state==AStarLocation.State.OPEN;
 				
 				if(neighbourNewCost<neighbour.g && contains) continue;
 				
@@ -112,13 +114,16 @@ public final class AStar {
 		}
 		
 		if(success) {
+			ArrayList<AStarLocation.ChunkLocation> path = new ArrayList<AStarLocation.ChunkLocation>();
 			AStarLocation t = target;
 			while(t!=null) {
-				System.out.println("("+t.gridLoc.x()+", "+t.gridLoc.y()+")");
+				//System.out.println("("+t.gridLoc.x()+", "+t.gridLoc.y()+")");
+				path.add(0,t.chunkLoc);
 				t=t.parent;
 			}
+			return new Result(new AStarLocation.ChunkLocation[0], path.toArray(new AStarLocation.ChunkLocation[0]));
 		}else {
-			System.out.println("fuck");
+			return null;
 		}
 		
 	}
@@ -146,6 +151,8 @@ public final class AStar {
 			return o1.f()-o2.f();
 		}
 	};
+	
+	public record Result(AStarLocation.ChunkLocation[] waypoints, AStarLocation.ChunkLocation[] path) {};
 	
 	
 	
