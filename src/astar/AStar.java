@@ -2,170 +2,201 @@ package astar;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 
-import astar.AStarQuerrier.Answer;
-import astar.AStarQuerrier.Question;
+import astar.AStarNode.State;
+import astar.AStarQuerier.Answer;
+import astar.AStarQuerier.Question;
+import astar.MapLocation.Loc;
 
-public final class AStar {
+public class AStar {
 	
-	private final long id;
-	@SuppressWarnings("unused")
-	private final int cxsize, cysize, psize, cxoffset, cyoffset;
-	private final int xsize, ysize;
-	private final AStarQuerrier querrier;
+	/**
+	 * Represents the id of this instance.
+	 * This will allow for an the calling program to know which 
+	 * astar algorithm is querying if multiple exist
+	 */
+	protected final long id;
 	
-	private final AStarLocation[][] grid;
+	/**
+	 * The querier for this algorithm
+	 */
+	protected final AStarQuerier querier;
 	
-	private int phase = -1;
-
+	/**
+	 * The heuristic function for this algorithm
+	 */
+	protected final AStarHeuristic heuristic;
 	
-	public AStar(AStarQuerrier querry, int cxsize, int cysize, int psize, int cxoffset, int cyoffset) {
-		this(0,querry, cxsize,cysize,psize, cxoffset, cyoffset);
-	}
+	/**
+	 * The comparator to order the priority queue
+	 */
+	protected final Comparator<AStarNode> priorityQueueCompare;
 	
-	public AStar(long id, AStarQuerrier querry, int cxsize, int cysize, int psize, int cxoffset, int cyoffset) {
+	/**
+	 * A hashmap containing the node for each grid coordinate 
+	 */
+	protected final HashMap<Loc, AStarNode> map = new HashMap<Loc, AStarNode>();
+	
+	/**
+	 * The constructor of this algorithm with a heuristic and id
+	 * @param id - the id
+	 * @param querier - the querier
+	 * @param heuristic - the heuristic
+	 */
+	public AStar(long id, AStarQuerier querier, AStarHeuristic heuristic) {
 		this.id = id;
-		this.cxsize = cxsize;
-		this.cysize = cysize;
-		this.cxoffset=cxoffset;
-		this.cyoffset=cyoffset;
-		this.psize = psize;
-		this.querrier=querry;
-		
-		xsize = cxsize*psize;
-		ysize = cysize*psize;
-		
-		grid = new AStarLocation[xsize][ysize];
-		for(int x=0;x<xsize;x++) {
-			for(int y=0;y<ysize;y++) {
-				AStarLocation.GridLocation gl = new AStarLocation.GridLocation(x,y);
-				grid[x][y] = new AStarLocation(gridToChunk(gl), gl);
+		this.querier = querier;
+		this.heuristic = heuristic;
+		this.priorityQueueCompare = new Comparator<AStarNode>() {
+			@Override
+			public int compare(AStarNode o1, AStarNode o2) {
+				float f = o1.g()+heuristic.h(o1)-o2.g()-heuristic.h(o2);
+				return (int)(f*10) + (int)Math.signum(f);
 			}
-		}
+		};
+	} 
+	
+	/**
+	 * The constructor of this algorithm with an id
+	 * @param id - the id
+	 * @param querier - the querier
+	 */
+	public AStar(long id, AStarQuerier querier) {
+		this(id,querier,new AStarHeuristic.Admissable());
 	}
 	
-	private AStarLocation.GridLocation chunkToGrid(AStarLocation.ChunkLocation cl) {
-		int x = (cl.cx()-cxoffset)*psize+cl.px();
-		int y = (cl.cy()-cyoffset)*psize+cl.py();
-		return new AStarLocation.GridLocation(x,y);
+	/**
+	 * The constructor of this algorithm with a heuristic
+	 * @param querier - the querier
+	 * @param heuristic - the heuristic
+	 */
+	public AStar(AStarQuerier querier, AStarHeuristic heuristic) {
+		this(0,querier,heuristic);
 	}
 	
-	private AStarLocation.ChunkLocation gridToChunk(AStarLocation.GridLocation gl) {
-		int cx = gl.x()/psize;
-		int cy = gl.y()/psize;
-		int px = gl.x()%psize+cxoffset;
-		int py = gl.y()%psize+cyoffset;
-		return new AStarLocation.ChunkLocation(cx,cy,px,py);
+	/**
+	 * The constructor of this algorithm
+	 * @param querier - the querier
+	 */
+	public AStar(AStarQuerier querier) {
+		this(0,querier);
 	}
 	
-	private AStarLocation getLocation(AStarLocation.ChunkLocation cl) {
-		AStarLocation.GridLocation gl = chunkToGrid(cl);
-		return grid[gl.x()][gl.y()];
-	}
-	
-	public Result run(AStarLocation.ChunkLocation startLoc, AStarLocation.ChunkLocation targetLoc) {
-		AStarLocation start = getLocation(startLoc);
-		AStarLocation target = getLocation(targetLoc);
-
-		start.reset(phase, target);
-		target.reset(phase, target);
+	/**
+	 * Runs the algorithm
+	 * 
+	 * @param startLoc
+	 * @param targetLoc
+	 * @return
+	 */
+	public Result run(MapLocation startLoc, MapLocation targetLoc) {
+		map.clear();
+		AStarNode target = new AStarNode(targetLoc, null);
+		AStarNode start = new AStarNode(startLoc, target);
+		map.put(start.location.loc, start);
+		map.put(target.location.loc, target);
 		
-		PriorityQueue<AStarLocation> open = new PriorityQueue<AStarLocation>(LOCATION_COMPARATOR); 
-		HashSet<AStarLocation> closed = new HashSet<AStarLocation>(); 
+		PriorityQueue<AStarNode> open = new PriorityQueue<AStarNode>(priorityQueueCompare);
+		HashSet<Loc> closed = new HashSet<Loc>();
 		
-		open.add(start);
-		start.state=AStarLocation.State.OPEN;
+		open.offer(start);
+		start.state=State.OPEN;
 		
-		boolean success = false;
+		heuristic.setState(start, target);
+		
+		boolean success=false;
 		
 		while(!open.isEmpty()) {
-			AStarLocation current = open.poll();
-			closed.add(current);
-			current.state = AStarLocation.State.CLOSED;
+			AStarNode current = open.poll();
+			closed.add(current.location.loc);
+			current.state=State.CLOSED;
 			
 			if(current==target) {
 				success=true;
 				break;
 			}
 			
-			for(AStarLocation neighbour : getNeighbours(current)) {
-				if(neighbour.phase!=phase) neighbour.reset(phase, target);
+			for(MapLocation location : getNeighbours(current.location.loc)) {
 				
-				Answer conditions = querrier.querry(new Question(id, current, neighbour));
+				if(closed.contains(location.loc)) {
+					continue;
+				}
 				
-				if(!conditions.walkable() || neighbour.state==AStarLocation.State.CLOSED) continue;
+				Answer conditions = querier.query(new Question(id, current.location, location));
 				
-				int neighbourNewCost = current.g + conditions.penalty() + AStarLocation.getDistanceBetweenNodes(current.gridLoc, neighbour.gridLoc);
+				if(!conditions.walkable()) continue;
 				
-				boolean contains = neighbour.state==AStarLocation.State.OPEN;
+				AStarNode neighbour = map.get(location.loc);
+				if(neighbour==null) {
+					neighbour = new AStarNode(location, target);
+					map.put(location.loc, neighbour);
+				}
 				
-				if(neighbourNewCost<neighbour.g && contains) continue;
+				float neighbourNewCost = current.gCost + conditions.penalty() 
+						+ AStarNode.getDistanceBetweenNodes(current.location, neighbour.location);
 				
-				if(contains) open.remove(neighbour);
+				if(neighbour.state==State.OPEN && neighbourNewCost > neighbour.gCost) continue;
 				
-				neighbour.g = neighbourNewCost;
-				neighbour.state=AStarLocation.State.OPEN;
+				if(neighbour.state==State.OPEN) open.remove(neighbour);
+				
+				neighbour.gCost = neighbourNewCost;
+				neighbour.state = State.OPEN;
 				neighbour.parent = current;
+				neighbour.depth = neighbour.parent.depth + 1;
 				
 				open.offer(neighbour);
 			}
 		}
 		
 		if(success) {
-			ArrayList<AStarLocation.ChunkLocation> path = new ArrayList<AStarLocation.ChunkLocation>();
-			AStarLocation t = target;
+			ArrayList<MapLocation> path = new ArrayList<MapLocation>();
+			AStarNode t = target;
 			while(t!=null) {
-				//System.out.println("("+t.gridLoc.x()+", "+t.gridLoc.y()+")");
-				path.add(0,t.chunkLoc);
+				path.add(0,t.location);
 				t=t.parent;
 			}
-			return new Result(new AStarLocation.ChunkLocation[0], path.toArray(new AStarLocation.ChunkLocation[0]));
+			return new Result(new MapLocation[0], path.toArray(new MapLocation[0]));
 		}else {
-			return null;
+			return new Result(null, null);
 		}
-		
 	}
 	
-	private final HashSet<AStarLocation> getNeighbours(AStarLocation l){
-		HashSet<AStarLocation> set = new HashSet<AStarLocation>();
+	/**
+	 * Returns all neighbouring positions to a given position
+	 * @param l - the location
+	 * @return the set of all neighbouring locations
+	 */
+	private final HashSet<MapLocation> getNeighbours(Loc l){
+		HashSet<MapLocation> set = new HashSet<MapLocation>();
 		
 		for(int i=-1; i<=1; i++) for(int j=-1; j<=1; j++) {
-			int x = l.gridLoc.x()+i;
-			int y = l.gridLoc.y()+j;
+			int x = l.x()+i;
+			int y = l.y()+j;
 			
-			if((i==0 && j==0) || (x<0 || x>=xsize) || (y<0 || y>=ysize)) {
-				continue;
-			}
+			if(i!=0 && j!=0)continue;
 			
-			set.add(grid[x][y]);
+			set.add(new MapLocation(new MapLocation.Loc(x,y)));
 		}
 		
 		return set;
 	}
 	
-	private static final Comparator<AStarLocation> LOCATION_COMPARATOR = new Comparator<AStarLocation>() {
-		@Override
-		public int compare(AStarLocation o1, AStarLocation o2) {
-			return o1.f()-o2.f();
-		}
-	};
 	
-	public record Result(AStarLocation.ChunkLocation[] waypoints, AStarLocation.ChunkLocation[] path) {};
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+	/**
+	 * The result of the algorithm
+	 * Contains <b>waypoints</b> and the full <b>path</b>
+	 * <p>
+	 * The <code>path</code> array will contain each location that is within the path. 
+	 * <p>
+	 * The <code>waypoints</code> array will contain a simplified version of the path 
+	 * with only corners included
+	 * @author Gareth Kmet
+	 *
+	 */
+	public record Result(MapLocation[] waypoints, MapLocation[] path) {};
 	
 
 }
