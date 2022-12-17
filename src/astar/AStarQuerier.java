@@ -46,15 +46,19 @@ public interface AStarQuerier {
 	 * using the arguments <code>id, originalLocation, neighbourLocation</code>
 	 * <p>
 	 * Can also be called by giving a set of all neighbouring locations wherein each location will be given a distance of <code>1</code>
+	 * <br>Also can be created using the default constructor wherein a black map is initiated
 	 * @author Gareth Kmet
 	 *
 	 */
 	public record NeighbourAnswer(HashMap<AStarLocation, Float> neighbours) {
 		public NeighbourAnswer(Collection<AStarLocation> locations) {
-			this(new HashMap<AStarLocation, Float>());
+			this();
 			for(AStarLocation l : locations) {
 				neighbours.put(l, 1f);
 			}
+		}
+		public NeighbourAnswer() {
+			this(new HashMap<AStarLocation, Float>());
 		}
 	}
 	

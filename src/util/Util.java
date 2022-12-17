@@ -54,8 +54,13 @@ public final class Util {
 	}
 	
 	/**
-	 * Converts a Cartesian location into an index on a spiral. Each different location will result in a different index
-	 * <br>Taken from <a href="https://stackoverflow.com/questions/9970134/get-spiral-index-from-location">here</a>
+	 * Converts a Cartesian location into a unique positive integer on a spiral
+	 * <p>
+	 * A coordinate of <code>0,0</code> will result in the spiral index of <code>1</code>
+	 * <br>All other coordinates will result in a positive natural number that is unique to the coordinate
+	 * <br><i>Negative inputs will result in coordinates on the <code>y-axis</code></i>
+	 * <p>
+	 * Taken from <a href="https://stackoverflow.com/questions/9970134/get-spiral-index-from-location">here</a>
 	 * @param x - The x location
 	 * @param y - The y location
 	 * @return <b><code>int</code></b> - the index of the location on the spiral
@@ -73,7 +78,45 @@ public final class Util {
 				p+=2*(y-x);
 			}
 		}
+		return p + 1;
+	}
+	
+	/**
+	 * Converts a unique positive integer spiral index to its unique Cartesian coordinate
+	 * <p>
+	 * An index of <code>1</code> will result in the coordinate pair <code>0,0</code>
+	 * <br>Results in the same pair of values that would be given in {@link #pointToSpiral(int, int)} to obtain this index
+	 * <p> 
+	 * Taken from <a href="https://gamedev.stackexchange.com/questions/157291/find-id-from-spiral-x-y-positions-hard-programming-formula">here</a>
+	 * @param s - the spiral index
+	 * @return an <code>x,y</code> coordinate
+	 */
+	public static int[] spiralToPoint(int s) {
+		int k = (int)Math.ceil((Math.sqrt(s)-1)/2.);
+		int t = 2*k+1;
+		int m = t*t;
+		t-=1;
+		
+		if(s>=m-t) {
+			int[] p = {-k, k-(m-s)};
+			return p;
+		}
+		m-=t;
+		
+		if(s>=m-t) {
+			int[] p = {-k+(m-s), -k};
+			return p;
+		}
+		m-=t;
+		
+		if(s>=m-t) {
+			int[] p = {k, -k+(m-s)};
+			return p;
+		}
+		
+		int[] p = {k-(m-s-t), k};
 		return p;
+		
 	}
 
 	/**

@@ -10,7 +10,7 @@ import astar.AStarNode.State;
 import astar.AStarQuerier.NeighbourAnswer;
 import astar.AStarQuerier.QueryAnswer;
 
-public class AStar {
+public final class AStar {
 	
 	/**
 	 * Represents the id of this instance.
@@ -91,7 +91,7 @@ public class AStar {
 	 * @param targetLoc
 	 * @return a {@link Result} of the algorithm
 	 */
-	public Result run(AStarLocation startLoc, AStarLocation targetLoc) {
+	public final Result run(AStarLocation startLoc, AStarLocation targetLoc) {
 		map.clear();
 		AStarNode target = new AStarNode(targetLoc, 0);
 		AStarNode start = new AStarNode(startLoc, querier.heuristic(id, startLoc, targetLoc));
