@@ -1,5 +1,12 @@
 package astar;
 
+/**
+ * Interface for the heuristic function used by the algorithm
+ * <p>
+ * Also contains static subclasses which are default types of heuristics that can be used
+ * @author Gareth Kmet
+ *
+ */
 public interface AStarHeuristic {
 	/**
 	 * Returns the heuristic for this node
@@ -11,10 +18,12 @@ public interface AStarHeuristic {
 	
 	/**
 	 * Initiates this instance for the current run of the AStar algorithm
-	 * @param start - the start node
+	 * @param id - the id of the algorithm
+	 * @param start - the starting node
 	 * @param target - the target node
+	 * @param querier - the querier being used by the algorithm
 	 */
-	public void setState(AStarNode start, AStarNode target);
+	public void setState(long id, AStarNode start, AStarNode target, AStarQuerier querier);
 	
 	/**
 	 * Returns the most optimal solution
@@ -32,7 +41,7 @@ public interface AStarHeuristic {
 		}
 
 		@Override
-		public void setState(AStarNode start, AStarNode target) {}
+		public void setState(long id, AStarNode start, AStarNode target, AStarQuerier querier) {}
 		
 	}
 	
@@ -81,8 +90,8 @@ public interface AStarHeuristic {
 		}
 
 		@Override
-		public void setState(AStarNode start, AStarNode target) {
-			N = AStarNode.getNodesBetweenNodes(start.location, target.location);
+		public void setState(long id, AStarNode start, AStarNode target, AStarQuerier querier) {
+			N = querier.heuristic(id, start.location, target.location);
 			N_1=1f/N;
 			
 		}

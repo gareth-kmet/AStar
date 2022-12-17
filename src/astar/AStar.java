@@ -7,9 +7,8 @@ import java.util.HashSet;
 import java.util.PriorityQueue;
 
 import astar.AStarNode.State;
-import astar.AStarQuerier.Answer;
-import astar.AStarQuerier.Question;
-import astar.MapLocation.Loc;
+import astar.AStarQuerier.NeighbourAnswer;
+import astar.AStarQuerier.QueryAnswer;
 
 public class AStar {
 	
@@ -38,7 +37,7 @@ public class AStar {
 	/**
 	 * A hashmap containing the node for each grid coordinate 
 	 */
-	protected final HashMap<Loc, AStarNode> map = new HashMap<Loc, AStarNode>();
+	protected final HashMap<AStarLocation, AStarNode> map = new HashMap<AStarLocation, AStarNode>();
 	
 	/**
 	 * The constructor of this algorithm with a heuristic and id
@@ -90,53 +89,53 @@ public class AStar {
 	 * 
 	 * @param startLoc
 	 * @param targetLoc
-	 * @return
+	 * @return a {@link Result} of the algorithm
 	 */
-	public Result run(MapLocation startLoc, MapLocation targetLoc) {
+	public Result run(AStarLocation startLoc, AStarLocation targetLoc) {
 		map.clear();
-		AStarNode target = new AStarNode(targetLoc, null);
-		AStarNode start = new AStarNode(startLoc, target);
-		map.put(start.location.loc, start);
-		map.put(target.location.loc, target);
+		AStarNode target = new AStarNode(targetLoc, 0);
+		AStarNode start = new AStarNode(startLoc, querier.heuristic(id, startLoc, targetLoc));
+		map.put(start.location, start);
+		map.put(target.location, target);
 		
 		PriorityQueue<AStarNode> open = new PriorityQueue<AStarNode>(priorityQueueCompare);
-		HashSet<Loc> closed = new HashSet<Loc>();
+		HashSet<AStarLocation> closed = new HashSet<AStarLocation>();
 		
 		open.offer(start);
 		start.state=State.OPEN;
 		
-		heuristic.setState(start, target);
+		heuristic.setState(id, start, target, querier);
 		
 		boolean success=false;
 		
 		while(!open.isEmpty()) {
 			AStarNode current = open.poll();
-			closed.add(current.location.loc);
+			closed.add(current.location);
 			current.state=State.CLOSED;
 			
 			if(current==target) {
 				success=true;
 				break;
 			}
-			
-			for(MapLocation location : getNeighbours(current.location.loc)) {
+			NeighbourAnswer neighbours = querier.neighbours(id, current.location);
+			for(AStarLocation location : neighbours.neighbours().keySet()) {//getNeighbours(current.location.loc)
 				
-				if(closed.contains(location.loc)) {
+				if(closed.contains(location)) {
 					continue;
 				}
 				
-				Answer conditions = querier.query(new Question(id, current.location, location));
+				QueryAnswer conditions = querier.query(id, current.location, location);
 				
 				if(!conditions.walkable()) continue;
 				
-				AStarNode neighbour = map.get(location.loc);
+				AStarNode neighbour = map.get(location);
 				if(neighbour==null) {
-					neighbour = new AStarNode(location, target);
-					map.put(location.loc, neighbour);
+					neighbour = new AStarNode(location, querier.heuristic(id, location, targetLoc));
+					map.put(location, neighbour);
 				}
 				
 				float neighbourNewCost = current.gCost + conditions.penalty() 
-						+ AStarNode.getDistanceBetweenNodes(current.location, neighbour.location);
+						+ neighbours.neighbours().get(location);
 				
 				if(neighbour.state==State.OPEN && neighbourNewCost > neighbour.gCost) continue;
 				
@@ -152,36 +151,16 @@ public class AStar {
 		}
 		
 		if(success) {
-			ArrayList<MapLocation> path = new ArrayList<MapLocation>();
+			ArrayList<AStarLocation> path = new ArrayList<AStarLocation>();
 			AStarNode t = target;
 			while(t!=null) {
 				path.add(0,t.location);
 				t=t.parent;
 			}
-			return new Result(new MapLocation[0], path.toArray(new MapLocation[0]));
+			return new Result(new AStarLocation[0], path.toArray(new AStarLocation[0]));
 		}else {
 			return new Result(null, null);
 		}
-	}
-	
-	/**
-	 * Returns all neighbouring positions to a given position
-	 * @param l - the location
-	 * @return the set of all neighbouring locations
-	 */
-	private final HashSet<MapLocation> getNeighbours(Loc l){
-		HashSet<MapLocation> set = new HashSet<MapLocation>();
-		
-		for(int i=-1; i<=1; i++) for(int j=-1; j<=1; j++) {
-			int x = l.x()+i;
-			int y = l.y()+j;
-			
-			if(i!=0 && j!=0)continue;
-			
-			set.add(new MapLocation(new MapLocation.Loc(x,y)));
-		}
-		
-		return set;
 	}
 	
 	
@@ -196,7 +175,7 @@ public class AStar {
 	 * @author Gareth Kmet
 	 *
 	 */
-	public record Result(MapLocation[] waypoints, MapLocation[] path) {};
+	public record Result(AStarLocation[] waypoints, AStarLocation[] path) {};
 	
 
 }

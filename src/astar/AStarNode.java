@@ -1,16 +1,21 @@
 package astar;
 
+/**
+ * The Node class for the AStar algorithm
+ * <p>
+ * Stores the location, gCost, default hCost, parent, and depth of a given location
+ * @author Gareth Kmet
+ *
+ */
 public class AStarNode {
-	
-	private static final float SQRT2 = (float)Math.sqrt(2);
 	
 	/**
 	 * The location of this node within the map
 	 */
-	public final MapLocation location;
+	final AStarLocation location;
 	
 	/**
-	 * The distance from this node to the target
+	 * The default heuristic of this node
 	 */
 	final float distanceToEnd;
 	
@@ -40,15 +45,19 @@ public class AStarNode {
 	/**
 	 * Constructor for AStarNode
 	 * @param loc - the map location of this node
-	 * @param end - the target node: <code>null</code> if this is the target
+	 * @param distanceToEnd - the default heuristic float for this node
 	 */
-	AStarNode(MapLocation loc, AStarNode end){
+	AStarNode(AStarLocation loc, float distanceToEnd){
 		location = loc;
-		if(end !=null) {
-			distanceToEnd = getDistanceBetweenNodes(location, end.location);
-		}else {
-			distanceToEnd=0;
-		}
+		this.distanceToEnd=distanceToEnd;
+	}
+	
+	/**
+	 * The location of this node within the map
+	 * @return the location
+	 */
+	public AStarLocation location() {
+		return this.location;
 	}
 	
 	
@@ -87,32 +96,6 @@ public class AStarNode {
 	void setParent(AStarNode parent) {
 		this.parent=parent;
 		this.depth=parent.depth;
-	}
-	
-	/**
-	 * Returns an distance between to nodes
-	 * @param a - the location of the first node
-	 * @param b - the location of the second node
-	 * @return the integer distance
-	 */
-	static float getDistanceBetweenNodes(MapLocation a, MapLocation b) {
-		int x = Math.abs(a.loc.x()-b.loc.x());
-		int y = Math.abs(a.loc.y()-b.loc.y());
-		if(x>y)return SQRT2*y+(x-y);
-		return SQRT2*x+(y-x);
-	}
-	
-	/**
-	 * Returns an integer representing the expected number of nodes inbetween the two
-	 * @param a - the location of the first node
-	 * @param b - the location of the second node
-	 * @return the integer distance
-	 */
-	static int getNodesBetweenNodes(MapLocation a, MapLocation b) {
-		int x = Math.abs(a.loc.x()-b.loc.x());
-		int y = Math.abs(a.loc.y()-b.loc.y());
-		if(x>y)return x;
-		return y;
 	}
 	
 	/**
